@@ -548,7 +548,7 @@
             },
             
             // API基础URL
-            apiBaseUrl: 'https://cloud.seatable.cn/dtable-server/api/v1/query/'
+            apiBaseUrl: 'https://api.allorigins.win/raw?url='
         };
         
         // 全局变量
@@ -645,7 +645,8 @@
         
         // 获取叉车信息
         async function getForkliftInfo(forkliftNo) {
-            const apiUrl = SEATABLE_CONFIG.apiBaseUrl + SEATABLE_CONFIG.baseUuid + '/';
+            const targetUrl = `https://cloud.seatable.cn/dtable-server/api/v1/query/${SEATABLE_CONFIG.baseUuid}/`;
+            const apiUrl = SEATABLE_CONFIG.apiBaseUrl + encodeURIComponent(targetUrl);
             
             const response = await fetch(apiUrl, {
                 method: 'POST',

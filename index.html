@@ -13,7 +13,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
             color: #333;
@@ -25,24 +25,20 @@
             background: white;
             border-radius: 16px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
         
         .header {
             text-align: center;
             margin-bottom: 30px;
             padding-bottom: 20px;
-            border-bottom: 1px solid #eaeaea;
+            border-bottom: 2px solid #f0f0f0;
         }
         
         .header h1 {
             color: #1890ff;
             font-size: 28px;
             margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
         }
         
         .header p {
@@ -94,13 +90,6 @@
             color: #1890ff;
             margin-bottom: 20px;
             font-size: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .forklift-card h2:before {
-            content: "🚛";
         }
         
         .info-grid {
@@ -114,10 +103,6 @@
             justify-content: space-between;
             padding: 10px 0;
             border-bottom: 1px dashed #e8e8e8;
-        }
-        
-        .info-item:last-child {
-            border-bottom: none;
         }
         
         .label {
@@ -139,13 +124,6 @@
             color: #52c41a;
             margin-bottom: 20px;
             font-size: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .drivers-section h2:before {
-            content: "👨‍✈️";
         }
         
         .drivers-grid {
@@ -439,6 +417,22 @@
             background: #ff4d4f;
         }
         
+        .proxy-selector {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f6ffed;
+            border-radius: 8px;
+            border: 1px solid #b7eb8f;
+        }
+        
+        .proxy-selector select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+            margin-left: 10px;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -462,8 +456,21 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>叉车驾驶员信息核查系统</h1>
+            <h1>🚜 叉车驾驶员信息核查系统</h1>
             <p>扫码确认驾驶员资质，确保安全生产</p>
+        </div>
+        
+        <div class="proxy-selector">
+            <label for="proxy-select">选择代理服务：</label>
+            <select id="proxy-select" onchange="changeProxy(this.value)">
+                <option value="cors-anywhere">CORS Anywhere (推荐)</option>
+                <option value="allorigins">AllOrigins</option>
+                <option value="corsproxy">CORS Proxy</option>
+                <option value="none">无代理 (可能失败)</option>
+            </select>
+            <p style="font-size: 12px; color: #666; margin-top: 8px;">
+                注意：使用CORS Anywhere可能需要先访问 <a href="https://cors-anywhere.herokuapp.com/" target="_blank">https://cors-anywhere.herokuapp.com/</a> 请求临时访问
+            </p>
         </div>
         
         <div id="loading" class="loading">
@@ -486,21 +493,17 @@
         <div id="content" style="display: none;">
             <!-- 叉车信息 -->
             <div class="forklift-card">
-                <h2>设备信息</h2>
-                <div class="info-grid" id="forklift-details">
-                    <!-- 叉车信息会动态加载到这里 -->
-                </div>
+                <h2>📱 设备信息</h2>
+                <div class="info-grid" id="forklift-details"></div>
             </div>
             
             <!-- 驾驶员列表 -->
             <div class="drivers-section">
-                <h2>授权驾驶员列表</h2>
+                <h2>👨‍✈️ 授权驾驶员列表</h2>
                 <p style="color: #666; margin-bottom: 20px; font-size: 15px;">
                     请点击选择当前正在操作此叉车的驾驶员：
                 </p>
-                <div class="drivers-grid" id="drivers-container">
-                    <!-- 驾驶员列表会动态加载到这里 -->
-                </div>
+                <div class="drivers-grid" id="drivers-container"></div>
             </div>
             
             <!-- 操作确认 -->
@@ -545,16 +548,39 @@
             tableNames: {
                 forklift: '叉车信息',
                 driver: '驾驶员信息'
-            },
-            
-            // API基础URL
-            apiBaseUrl: 'https://api.allorigins.win/raw?url='
+            }
         };
+        
+        // 可用的CORS代理服务
+        const PROXY_SERVICES = {
+            'cors-anywhere': 'https://cors-anywhere.herokuapp.com/',
+            'allorigins': 'https://api.allorigins.win/raw?url=',
+            'corsproxy': 'https://corsproxy.io/?',
+            'none': ''  // 不使用代理
+        };
+        
+        // 当前使用的代理
+        let currentProxy = PROXY_SERVICES['cors-anywhere'];
         
         // 全局变量
         let currentForklift = null;
         let authorizedDrivers = [];
         let selectedDriver = null;
+        
+        // 切换代理服务
+        function changeProxy(proxyName) {
+            currentProxy = PROXY_SERVICES[proxyName];
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('error-container').style.display = 'none';
+            
+            // 重新加载数据
+            const urlParams = new URLSearchParams(window.location.search);
+            const forkliftNo = urlParams.get('no') || '';
+            if (forkliftNo) {
+                loadData(forkliftNo);
+            }
+        }
         
         // 页面加载时执行
         document.addEventListener('DOMContentLoaded', function() {
@@ -566,7 +592,11 @@
             document.getElementById('retry-btn').addEventListener('click', function() {
                 document.getElementById('error-container').style.display = 'none';
                 document.getElementById('loading').style.display = 'block';
-                loadData();
+                const urlParams = new URLSearchParams(window.location.search);
+                const forkliftNo = urlParams.get('no') || '';
+                if (forkliftNo) {
+                    loadData(forkliftNo);
+                }
             });
             
             // 从URL获取叉车编号
@@ -578,7 +608,7 @@
                 loadData(forkliftNo);
             } else {
                 // 如果没有叉车编号，显示错误
-                showError('请在URL中指定叉车编号，例如：?no=FL-001');
+                showError('请在URL中指定叉车编号，例如：?no=吉A09399');
             }
             
             // 监听ESC键关闭模态框
@@ -646,7 +676,16 @@
         // 获取叉车信息
         async function getForkliftInfo(forkliftNo) {
             const targetUrl = `https://cloud.seatable.cn/dtable-server/api/v1/query/${SEATABLE_CONFIG.baseUuid}/`;
-            const apiUrl = SEATABLE_CONFIG.apiBaseUrl + encodeURIComponent(targetUrl);
+            
+            // 构建请求URL
+            let apiUrl;
+            if (currentProxy === PROXY_SERVICES['none']) {
+                apiUrl = targetUrl;
+            } else if (currentProxy === PROXY_SERVICES['allorigins'] || currentProxy === PROXY_SERVICES['corsproxy']) {
+                apiUrl = currentProxy + encodeURIComponent(targetUrl);
+            } else {
+                apiUrl = currentProxy + targetUrl;
+            }
             
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -664,6 +703,8 @@
                     throw new Error('API Token无效或权限不足');
                 } else if (response.status === 404) {
                     throw new Error('未找到指定的数据表');
+                } else if (response.status === 0) {
+                    throw new Error('网络请求被阻止，可能是CORS问题，请尝试切换其他代理服务');
                 } else {
                     throw new Error(`HTTP错误: ${response.status}`);
                 }
@@ -675,7 +716,17 @@
         
         // 获取所有驾驶员信息
         async function getAllDrivers() {
-            const apiUrl = SEATABLE_CONFIG.apiBaseUrl + SEATABLE_CONFIG.baseUuid + '/';
+            const targetUrl = `https://cloud.seatable.cn/dtable-server/api/v1/query/${SEATABLE_CONFIG.baseUuid}/`;
+            
+            // 构建请求URL
+            let apiUrl;
+            if (currentProxy === PROXY_SERVICES['none']) {
+                apiUrl = targetUrl;
+            } else if (currentProxy === PROXY_SERVICES['allorigins'] || currentProxy === PROXY_SERVICES['corsproxy']) {
+                apiUrl = currentProxy + encodeURIComponent(targetUrl);
+            } else {
+                apiUrl = currentProxy + targetUrl;
+            }
             
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -922,27 +973,6 @@
             } else {
                 indicator.classList.add('status-disconnected');
                 text.textContent = message || '正在连接...';
-            }
-        }
-        
-        // 测试API连接
-        async function testConnection() {
-            try {
-                const apiUrl = SEATABLE_CONFIG.apiBaseUrl + SEATABLE_CONFIG.baseUuid + '/';
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Token ${SEATABLE_CONFIG.apiToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        sql: 'SELECT 1'
-                    })
-                });
-                
-                return response.ok;
-            } catch (error) {
-                return false;
             }
         }
     </script>
